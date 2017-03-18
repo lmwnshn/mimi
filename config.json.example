@@ -1,7 +1,6 @@
 {
 	"host": "127.0.0.1",
 	"port": "8080",
-	"lastfm_user": "LASTFM_USERNAME",
 	"lastfm_key": "LASTFM_KEY",
 	"youtube_key": "YOUTUBE_KEY",
 	"active_window_min": "10",

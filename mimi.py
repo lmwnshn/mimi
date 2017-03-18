@@ -2,6 +2,7 @@
 Gets recent tracks from last.fm and loads their youtube links into VLC.
 """
 
+import argparse
 import datetime
 import json
 import telnetlib
@@ -45,9 +46,9 @@ class Scrobbler:
         self.user = user
         self.lastfm_key = lastfm_key
 
-    def get_tracks(self, last_ts, limit=25):
+    def get_tracks(self, last_ts, limit):
         """
-        Return up to limit (defaul 20) tracks since last_ts (UNIX time).
+        Return up to limit tracks since last_ts (UNIX time).
         """
         recenttracks = {
             'method': 'user.getrecenttracks',
@@ -136,9 +137,39 @@ class YoutubeLinker:
         return url
 
 
+def _load_config():
+    """
+    Return contents of local file config.json as a dictionary.
+
+    Expected from config.json:
+    host: the server on which VLC's rc interface is running
+          (note that the rc interface is insecure and should not be exposed,
+           it is recommended that host is always 127.0.0.1,
+           this option is here so you can shoot yourself in the foot
+           if you want to)
+    port: the port on which VLC's rc interface is running
+    lastfm_key: api key for last.fm
+    youtube_key: api key for Youtube Data API
+    active_window_min: window in minutes for user recently active
+    awake_min: time in minutes before we poll last.fm for update (fast)
+    asleep_min: time in minutes before we poll last.fm for update (slow)
+    """
+    with open('config.json', 'r') as jsonfile:
+        config = json.load(jsonfile)
+
+    return config
+
+
+def _time_hms(datetime_obj):
+    """
+    Return datetime_obj formatted as HH:MM:SS.
+    """
+    return '{time:%H:%M:%S}'.format(time=datetime_obj)
+
+
 def load_tracks(tracks, last_ts, vlcrc, youtube_linker, verbose=False):
     """
-    Loads the youtube URL of every track into VLC,
+    Load the youtube URL of every track into VLC,
     returning UNIX time of the latest track.
     """
     if len(tracks) == 0:
@@ -164,67 +195,60 @@ def load_tracks(tracks, last_ts, vlcrc, youtube_linker, verbose=False):
     return last_ts
 
 
-def load_config():
-    """
-    Return contents of local file config.json as a dictionary.
-
-    Expected from config.json:
-    host: the server on which VLC's rc interface is running 
-          (note that the rc interface is insecure and should not be exposed,
-           it is recommended that host is always 127.0.0.1,
-           this option is here so you can shoot yourself in the foot
-           if you want to)
-    port: the port on which VLC's rc interface is running
-    lastfm_user: the person whose last.fm we are following
-    lastfm_key: api key for last.fm
-    youtube_key: api key for Youtube Data API
-    active_window_min: window in minutes for user recently active
-    awake_min: time in minutes before we poll last.fm for update (fast)
-    asleep_min: time in minutes before we poll last.fm for update (slow)
-    """
-    with open('config.json', 'r') as jsonfile:
-        config = json.load(jsonfile)
-
-    return config
-
-
 def main():
     """
     Magic.
     """
-    last_ts = 0
 
-    config = load_config()
+    parser = argparse.ArgumentParser(
+        description=("Loads youtube links for a last.fm user's"
+                     "recent tracks into VLC.")
+    )
+    parser.add_argument(
+        'limit', metavar='limit', type=int, nargs='?',
+        const=25, default=25, help='number of tracks to load'
+    )
+    parser.add_argument(
+        'user', metavar='user', type=str,
+        help='last.fm user to load'
+    )
+
+    args = parser.parse_args()
+    limit = args.limit
+    lfm_user = args.user
+
+    config = _load_config()
     host = config['host']
     port = config['port']
-    lfm_user = config['lastfm_user']
     lfm_key = config['lastfm_key']
     yt_key = config['youtube_key']
     active_window_s = 60 * int(config['active_window_min'])
     awake_s = 60 * int(config['awake_min'])
     asleep_s = 60 * int(config['asleep_min'])
+    last_ts = 0
 
     scrobbler = Scrobbler(lfm_user, lfm_key)
     linker = YoutubeLinker(yt_key)
 
     while True:
         with VLCrc(host, port) as vlcrc:
-            tracks = scrobbler.get_tracks(last_ts)
+            tracks = scrobbler.get_tracks(last_ts, limit)
             last_ts = load_tracks(tracks, last_ts, vlcrc,
                                   linker, verbose=True)
+            last_ts_dt = datetime.datetime.fromtimestamp(last_ts)
 
             now = datetime.datetime.now()
-            print(str(now), "| last_ts:", last_ts)
+            print(_time_hms(now), "| last played:", _time_hms(last_ts_dt))
 
             recently_active = now.timestamp() - last_ts < active_window_s
 
             if recently_active:
                 wake_time = now + datetime.timedelta(seconds=awake_s)
-                print("[RECENTLY ACTIVE] sleeping until", str(wake_time))
+                print('[ACTIVE] next update @', _time_hms(wake_time))
                 time.sleep(awake_s)
             else:
                 wake_time = now + datetime.timedelta(seconds=asleep_s)
-                print("[NOT ACTIVE] sleeping until", str(wake_time))
+                print('[ASLEEP] next update @', _time_hms(wake_time))
                 time.sleep(asleep_s)
 
 
