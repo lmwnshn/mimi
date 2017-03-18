@@ -162,9 +162,9 @@ def _load_config():
 
 def _time_hms(datetime_obj):
     """
-    Return datetime_obj formatted as HH:MM:SS.
+    Return datetime_obj formatted as mm/dd HH:MM:SS.
     """
-    return '{time:%H:%M:%S}'.format(time=datetime_obj)
+    return '{time:%m/%d %H:%M:%S}'.format(time=datetime_obj)
 
 
 def load_tracks(tracks, last_ts, vlcrc, youtube_linker, verbose=False):
@@ -190,7 +190,11 @@ def load_tracks(tracks, last_ts, vlcrc, youtube_linker, verbose=False):
         if verbose:
             track_name = track['name']
             video_id = youtube_url[youtube_url.find('?v=')+3:]
-            print('[{id}] Loaded {name}'.format(name=track_name, id=video_id))
+            last_ts = int(track['date']['uts'])
+            last_ts_dt = datetime.datetime.fromtimestamp(last_ts)
+            playtime = _time_hms(last_ts_dt)
+            msg = '[{id}] [{playtime}] Loaded {name}'
+            print(msg.format(name=track_name, playtime=playtime, id=video_id))
 
     return last_ts
 
