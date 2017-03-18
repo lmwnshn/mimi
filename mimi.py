@@ -190,9 +190,9 @@ def load_tracks(tracks, last_ts, vlcrc, youtube_linker, verbose=False):
         if verbose:
             track_name = track['name']
             video_id = youtube_url[youtube_url.find('?v=')+3:]
-            last_ts = int(track['date']['uts'])
-            last_ts_dt = datetime.datetime.fromtimestamp(last_ts)
-            playtime = _time_hms(last_ts_dt)
+            uts = int(track['date']['uts'])
+            uts_dt = datetime.datetime.fromtimestamp(uts)
+            playtime = _time_hms(uts_dt)
             msg = '[{id}] [{playtime}] Loaded {name}'
             print(msg.format(name=track_name, playtime=playtime, id=video_id))
 
