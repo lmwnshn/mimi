@@ -21,7 +21,7 @@ The script repeats the above every X seconds, where X is determined by whether t
 ## Usage
 **Configuration:**  
 1. VLC needs to have its [rc](https://wiki.videolan.org/documentation:modules/rc/) interface configured, preferably as an extra interface.
-2. Fill in `config.json` with: host and port for VLC's rc interface, Last.fm user and API key, (optional but recommended) YouTube API key
+2. Fill in `config.json` with: host and port for VLC's rc interface, Last.fm API key, (optional but recommended) YouTube API key
 
 **Once configured:**  
 1. Start VLC.
